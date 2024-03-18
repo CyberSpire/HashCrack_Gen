@@ -1,4 +1,4 @@
-import hashlib,os,chardet,random,threading,colorama,time,readline,re
+import hashlib,os,chardet,random,threading,colorama,time,readline,re,itertools
 from itertools import product
 
 # Define hash patterns
@@ -81,6 +81,7 @@ HASHES = (
 )
 
 class Generator:
+
     @staticmethod
     def Random(characters, min_length, max_length, limit):
         char = list(set(characters))
@@ -148,35 +149,27 @@ class Generator:
     @staticmethod
     def Custom_Wordlist(base_word, numbers=None, replace_a=False, replace_e=False, replace_h=False, replace_l=False, replace_o=False, replace_s=False, append_character=None):
         wordlist = []
-
         # Generate all possible combinations of uppercase and lowercase letters for each character
         for combination in itertools.product(*zip(base_word.lower(), base_word.upper())):
             modified_word = ''.join(combination)
-
             # Optionally replace 'a' with '@'
             if replace_a:
                 modified_word = modified_word.replace('a', '@')
-
             # Optionally replace 'e' with '3'
             if replace_e:
                 modified_word = modified_word.replace('e', '3')
-
             # Optionally replace 'h' with '#'
             if replace_h:
                 modified_word = modified_word.replace('h', '#')
-
             # Optionally replace 'l' with '1'
             if replace_l:
                 modified_word = modified_word.replace('l', '1')
-
             # Optionally replace 'o' with '0'
             if replace_o:
                 modified_word = modified_word.replace('o', '0')
-
             # Optionally replace 's' with '$'
             if replace_s:
                 modified_word = modified_word.replace('s', '$')
-
             # Append each number if specified
             if numbers:
                 for number in numbers:
@@ -190,14 +183,14 @@ class Generator:
                 if append_character:
                     modified_word += append_character
                 wordlist.append(modified_word)
-
         return wordlist
-        
+    
+    @staticmethod    
     def Custom_Wordlists_Replace(base_words, numbers=None, append_character=None):
         wordlists = []
         for base_word in base_words:
-            wordlist_no_replace = Custom_Wordlist(base_word, numbers, False, False, False, False, False, False, append_character)
-            wordlist_replace_all = Custom_Wordlist(base_word, numbers, True, True, True, True, True, True, append_character)
+            wordlist_no_replace = Generator.Custom_Wordlist(base_word, numbers, False, False, False, False, False, False, append_character)
+            wordlist_replace_all = Generator.Custom_Wordlist(base_word, numbers, True, True, True, True, True, True, append_character)
             wordlists.append(wordlist_no_replace)
             wordlists.append(wordlist_replace_all)
         return wordlists
@@ -224,7 +217,7 @@ class Generator:
         for word in words:
             word_results = {}
             for algo in algorithms:
-                hash_value = Calculate_Hash(word, algo)
+                hash_value = Generator.Calculate_Hash(word, algo)
                 word_results[algo.upper()] = hash_value
             results[word] = word_results
         return results
@@ -304,7 +297,7 @@ class HashGenerator:
     def blake2s(self):
         return hashlib.blake2s(self.hash_str.encode()).hexdigest()
 
-class KCrack:
+class HashCrack_Gen:
     def __init__(self):
         self.gen = Generator()
         self.key = CheckKey()
@@ -581,18 +574,18 @@ class KCrack:
         # Take user input
         input_hash = input(f"{self.bright}{self.red}Enter the hash value: >>{self.reset_all}")
         algorithm = self.gen.Identify_Hash_Algorithm(input_hash)
-        print(f"{self.bright}{self.green}The hash is likely generated using {self.red}[{algorithm}]{self.green} algorithm.{self.reset_all}")
+        print(f"{self.bright}{self.blue}The hash is likely generated using {self.red}[{algorithm}]{self.green} algorithm.{self.reset_all}")
         
     def _hash_generator(self):
         words = input(f"{self.bright}{self.red}Enter the words (separated by commas): >>{self.reset_all}").split(',')
         algorithms = input(f"{self.bright}{self.red}Enter the hash algorithms (separated by commas): >>{self.reset_all}").split(',')
         algorithms = [algo.strip().lower() for algo in algorithms]  # Ensure lowercase
-        print(f"{self.bright}{self.green}Analyzing hashes...{self.reset_all}")
+        print(f"{self.bright}{self.blue}Analyzing hashes...{self.reset_all}")
         hash_results = self.gen.Analyze_Hashes([word.strip() for word in words], algorithms)
         if hash_results:
-            print(f"{self.bright}{self.green}Hash analysis complete:{self.reset_all}")
+            print(f"{self.bright}{self.blue}Hash analysis complete:{self.reset_all}")
             for word, word_results in hash_results.items():
-                print(f"{self.bright}{self.green}Word: {self.yellow}{word}")
+                print(f"{self.bright}{self.blue}Word: {self.green}{word}")
                 for algo, value in word_results.items():
                     print(f"{self.bright}{self.red}{algo}: {self.yellow}{value}")
                 print()
@@ -603,7 +596,7 @@ class KCrack:
         algorithm = input(f"{self.bright}{self.red}Enter the hash algorithm (md5, sha1, sha256, etc.): >>{self.reset_all}").strip().lower()
         output_file = input(f"{self.bright}{self.red}Enter the output file name: >>{self.reset_all}").strip()
         self.gen.Generate_RainbowTable(wordlist_file, algorithm, output_file)
-        print(f"{self.bright}{self.green}Rainbow table generated successfully!{self.reset_all}")
+        print(f"{self.bright}{self.blue}Rainbow table generated successfully!{self.reset_all}\n")
 
     
     def _generate_rainbow_numbers(self):
@@ -612,12 +605,12 @@ class KCrack:
         end = int(input(f"{self.bright}{self.red}Enter the ending number of the range: >>{self.reset_all}"))
         filename = input(f"{self.bright}{self.red}Enter the file name to save the rainbow table: >>{self.reset_all}")       
         self.gen.Generate_RainbowTable_Numbers(algorithm, filename, start, end)
-        print(f"{self.bright}{self.green}Rainbow table generated successfully!{self.reset_all}")
+        print(f"{self.bright}{self.blue}Rainbow table generated successfully!{self.reset_all}\n")
         
 if __name__ == "__main__":
     while True:
         try:
-            main = KCrack()
+            main = HashCrack_Gen()
             main.my_start()
         except KeyboardInterrupt:
             pass
