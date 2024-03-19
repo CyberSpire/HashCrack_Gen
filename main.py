@@ -1,4 +1,4 @@
-import hashlib,os,chardet,random,threading,colorama,time,readline,re,itertools
+import hashlib,os,chardet,random,threading,colorama,time,readline,re,itertools,string
 from itertools import product
 
 # Define hash patterns
@@ -78,6 +78,16 @@ HASHES = (
       "RAdmin v2.x", "NTLM", "Domain Cached Credentials(DCC)", "Domain Cached Credentials 2(DCC2)", "MD4", "MD2",
       "MD4(HMAC)", "MD2(HMAC)", "Snefru-128", "Snefru-128(HMAC)", "HAVAL-128", "HAVAL-128(HMAC)", "Skein-256(128)",
       "Skein-512(128)", "MSCASH2"), "^[0-9A-Fa-f]{32}$"),
+    (("SHA-256", "SHA-256(HMAC)", "SHA-3(Keccak)", "GOST R 34.11-94", "RIPEMD-256", "HAVAL-256", "Snefru-256",
+      "Snefru-256(HMAC)", "RIPEMD-256(HMAC)", "Keccak-256", "Skein-256", "Skein-512(256)"), "^[a-fA-F0-9]{64}$"),
+    (("SHA-1(Oracle)", "HAVAL-192", "OSX v10.4, v10.5, v10.6", "Tiger-192", "TIGER-192(HMAC)"), "^[a-fA-F0-9]{48}$"),
+    (("SHA-224", "SHA-224(HMAC)", "HAVAL-224", "Keccak-224", "Skein-256(224)", "Skein-512(224)"), "^[a-fA-F0-9]{56}$"),
+    (("Adler32", "FNV-32", "ELF-32", "Joaat", "CRC-32", "CRC-32B", "GHash-32-3", "GHash-32-5", "FCS-32", "Fletcher-32",
+      "XOR-32"), "^[a-fA-F0-9]{8}$"),
+    (("CRC-16-CCITT", "CRC-16", "FCS-16"), "^[a-fA-F0-9]{4}$"),
+    (("Blake-256", "Blake-512"), "^[a-fA-F0-9]{64}$"),
+    ("Argon2", "^\$argon2[ia]?\$v=19\$[a-zA-Z0-9$/.]{0,}\$[a-zA-Z0-9$/.]{22}$"),
+    ("bcrypt", "^\$2[ayb]\$.{56}$"),
 )
 
 class Generator:
@@ -123,29 +133,32 @@ class Generator:
             print(f"Error occurred while reading the file: {e}")
 
     @staticmethod
-    def generate_wordlist_wildcard(words, numbers):
-        replacements = {'o': '0', 'a': '@', 's': '$','l': '1', 'e': '3', 'h':'#'}  # Define replacements
-        wordlist = set()
+    def Generate_Wordlist_Wildcard(input_string, include_letters=True, include_numbers=True, include_special_symbols=True):
+        wordlist = []
+        special_symbols = string.punctuation.replace('?', '')  # Excluding '?' from special symbols     
+        for char in input_string:
+            if char == '?':
+                if include_letters and include_numbers and include_special_symbols:
+                    wordlist.append(list(string.ascii_letters + string.digits + special_symbols))
+                elif include_letters and include_special_symbols:
+                    wordlist.append(list(string.ascii_letters + special_symbols))
+                elif include_numbers and include_special_symbols:
+                    wordlist.append(list(string.digits + special_symbols))
+                elif include_letters and include_numbers:
+                    wordlist.append(list(string.ascii_letters + string.digits))
+                elif include_letters:
+                    wordlist.append(list(string.ascii_letters))
+                elif include_numbers:
+                    wordlist.append(list(string.digits))
+                elif include_special_symbols:
+                    wordlist.append(list(special_symbols))
+            else:
+                wordlist.append([char])
+        combinations = list(itertools.product(*wordlist))
+        words = [''.join(combination) for combination in combinations]
+        return words
 
-        def generate_variations(word):
-            variations = [word.lower(), word.upper(), word.capitalize()]
-            for letter, replacement in replacements.items():
-                variations.extend([v.replace(letter, replacement) for v in variations])
-            return variations
-
-        if numbers:  # Check if numbers are provided by the user
-            for word in words:
-                variations = generate_variations(word)
-                for variation in variations:
-                    for number in numbers:
-                        wordlist.add(variation + number)
-        else:  # If no numbers are provided, generate wordlist without appending numbers
-            for word in words:
-                variations = generate_variations(word)
-                wordlist.update(variations)
-
-        return list(wordlist)
-        
+            
     @staticmethod
     def Custom_Wordlist(base_word, numbers=None, replace_a=False, replace_e=False, replace_h=False, replace_l=False, replace_o=False, replace_s=False, append_character=None):
         wordlist = []
@@ -211,15 +224,19 @@ class Generator:
         return hasher.hexdigest()
 
     @staticmethod
-    def Analyze_Hashes(words, algorithms):
+    def Analyze_Hashes(self,words, algorithms):
         """Analyze hash of multiple words using multiple algorithms."""
         results = {}
         for word in words:
             word_results = {}
             for algo in algorithms:
-                hash_value = Generator.Calculate_Hash(word, algo)
-                word_results[algo.upper()] = hash_value
-            results[word] = word_results
+                try:
+                    hash_value = Generator.Calculate_Hash(word, algo)
+                    word_results[algo.upper()] = hash_value
+                except ValueError:
+                    print(f"{self.bright}{self.red}Error: {self.reset_all}Hash algorithm '{algo}' is not supported.\n")
+            if word_results:  # Only add results if there are valid hash values
+                results[word] = word_results
         return results
     
     @staticmethod
@@ -409,12 +426,12 @@ class HashCrack_Gen:
                 elif command == "5":
                     self._rainbow_submenu()
                 elif command == "0":
-                    print(f"{self.bright}{self.green}Thank you for using HashCrack_Gen!{self.reset_all}")
+                    print(f"{self.bright}{self.yellow}\nThank you for using HashCrack_Gen!{self.reset_all}")
                     exit()
                 else:
-                    print(f"{self.bright}{self.green}Invalid command. Please try again.{self.reset_all}")
+                    print(f"{self.bright}{self.red}\nInvalid command. Please try again.{self.reset_all}")
             except KeyboardInterrupt:
-                print(f"{self.bright}{self.green}\nOperation interrupted. Please try again.{self.reset_all}")
+                print(f"{self.bright}{self.red}\nOperation interrupted. Please try again.{self.reset_all}")
                 break
 
     def _print_intro(self):
@@ -433,28 +450,31 @@ class HashCrack_Gen:
         while True:
             try:
                 print(f"""{self.bright}{self.red}Wordlist Submenu:
-        {self.green}1. Generate Random Letters Wordlist
-        2. Generate Custom Wordlist
+        {self.blue}1. Generate Custom Wordlist [Popular]
+        2. Generate Custom Wordlist using WildCard(?)
+        3. Generate Random Letters Wordlist
         0. Back to main menu""")
                 choice = input(f"{self.bright}{self.red}Enter your choice: {self.reset_all}")
                 if choice == "1":
-                    self._generate_wordlist()
-                elif choice == "2":
                     self._generate_custom_wordlist()
+                elif choice == "2":
+                    self._generate_wildcard()
+                elif choice == "3":
+                    self._generate_wordlist()
                 elif choice == "0":
-                    print(f"{self.bright}{self.blue}Returning to main menu...{self.reset_all}")
+                    print(f"{self.bright}{self.yellow}Returning to Main Menu...\n{self.reset_all}")
                     break
                 else:
-                    print(f"{self.bright}{self.red}Invalid choice. Please try again.{self.reset_all}")
+                    print(f"{self.bright}{self.red}\nInvalid choice. Please try again.{self.reset_all}")
             except KeyboardInterrupt:
-                print(f"{self.bright}{self.red}\nOperation interrupted. Returning to main menu...{self.reset_all}")
+                print(f"{self.bright}{self.red}\nOperation interrupted. Returning to Main Menu...{self.reset_all}")
                 break
 
     def _hash_analyzer_submenu(self):
         while True:
             try:
-                print(f"""{self.bright}{self.red}Hash Analyzer Submenu:
-        {self.green}1. Analyze Hash
+                print(f"""{self.bright}{self.red}Hash Analyzer/Generator Submenu:
+        {self.blue}1. Analyze Hash
         2. Generate Hash Value
         0. Back to main menu""")
                 choice = input(f"{self.bright}{self.red}Enter your choice: {self.reset_all}")
@@ -463,19 +483,19 @@ class HashCrack_Gen:
                 elif choice == "2":
                     self._hash_generator()
                 elif choice == "0":
-                    print(f"{self.bright}{self.blue}Returning to main menu...{self.reset_all}")
+                    print(f"{self.bright}{self.yellow}Returning to Main Menu...\n{self.reset_all}")
                     break
                 else:
-                    print(f"{self.bright}{self.red}Invalid choice. Please try again.{self.reset_all}")
+                    print(f"{self.bright}{self.red}\nInvalid choice. Please try again.{self.reset_all}")
             except KeyboardInterrupt:
-                print(f"{self.bright}{self.red}\nOperation interrupted. Returning to main menu...{self.reset_all}")
+                print(f"{self.bright}{self.red}\nOperation interrupted. Returning to Main Menu...{self.reset_all}")
                 break
                 
     def _rainbow_submenu(self):
         while True:
             try:
                 print(f"""{self.bright}{self.red}RainbowTable Submenu:
-        {self.green}1. Generate Wordlist Rainbow Table
+        {self.blue}1. Generate Wordlist Rainbow Table
         2. Generate Number-Range Rainbow Table
         0. Back to main menu""")
                 choice = input(f"{self.bright}{self.red}Enter your choice: {self.reset_all}")
@@ -484,20 +504,20 @@ class HashCrack_Gen:
                 elif choice == "2":
                     self._generate_rainbow_numbers()
                 elif choice == "0":
-                    print(f"{self.bright}{self.blue}Returning to main menu...{self.reset_all}")
+                    print(f"{self.bright}{self.yellow}Returning to Main Menu...\n{self.reset_all}")
                     break
                 else:
-                    print(f"{self.bright}{self.red}Invalid choice. Please try again.{self.reset_all}")
+                    print(f"{self.bright}{self.red}\nInvalid choice! Please try again.{self.reset_all}")
             except KeyboardInterrupt:
-                print(f"{self.bright}{self.red}\nOperation interrupted. Returning to main menu...{self.reset_all}")
+                print(f"{self.bright}{self.red}\nOperation interrupted. Returning to Main Menu...{self.reset_all}")
                 break
 
     def _generate_wordlist(self):
-        b_str = input(f"{self.bright}{self.red}Input Characters >>{self.reset_all}")
-        b_min = int(input(f"{self.bright}{self.red}Input Min Length Password >>{self.reset_all}"))
-        b_max = int(input(f"{self.bright}{self.red}Input Max Length Password >>{self.reset_all}"))
-        b_limit = int(input(f"{self.bright}{self.red}Input Total Count of Password wordlist >>{self.reset_all}"))
-        b_path = input(f"{self.bright}{self.red}Input File name or path >>{self.reset_all}").replace("'", "").replace('"',
+        b_str = input(f"{self.bright}{self.red}# Input Characters >>{self.reset_all}")
+        b_min = int(input(f"{self.bright}{self.red}# Input Min Length Password >>{self.reset_all}"))
+        b_max = int(input(f"{self.bright}{self.red}# Input Max Length Password >>{self.reset_all}"))
+        b_limit = int(input(f"{self.bright}{self.red}# Input Total Count of Password wordlist >>{self.reset_all}"))
+        b_path = input(f"{self.bright}{self.red}# Input File name or path >>{self.reset_all}").replace("'", "").replace('"',
                                                                                                                     "").lstrip().rstrip()
         start_time = time.time()
         b_list = open(b_path, "w")
@@ -510,15 +530,15 @@ class HashCrack_Gen:
         self.th_stop = False
         time.sleep(2)
         main.dic_generated(b_str, b_path, start_time)
-        input(f"{self.bright}{self.green}Press Enter to main #{self.reset_all}")
+        input(f"{self.bright}{self.green}Press Enter to Main Menu#{self.reset_all}")
         main.my_start()
                 
     def _brute_force_crack(self):
-        b_hash = input(f"{self.bright}{self.red}Input Encrypted Hash String >>{self.reset_all}").replace("'", "").replace('"',"").lstrip().rstrip()
-        hash_type = input(f"{self.bright}{self.red}Select {self.blue}[1]MD5 [2]SHA1 [3]SHA224 [4]SHA256 [5]SHA384 [6]SHA512 [7]BLAKE2B [8]BLAKE2S \n{self.red}Type >>{self.reset_all}")
-        b_str = input(f"{self.bright}{self.red}Input Characters to generate word combinations >>{self.reset_all}")
-        b_min = int(input(f"{self.bright}{self.red}Input Min Length Password >>{self.reset_all}"))
-        b_max = int(input(f"{self.bright}{self.red}Input Max Length Password >>{self.reset_all}"))
+        b_hash = input(f"{self.bright}{self.red}# Input Encrypted Hash String >>{self.reset_all}").replace("'", "").replace('"',"").lstrip().rstrip()
+        hash_type = input(f"{self.bright}{self.red}# Select {self.blue}[1]MD5 [2]SHA1 [3]SHA224 [4]SHA256 [5]SHA384 [6]SHA512 [7]BLAKE2B [8]BLAKE2S \n{self.red}Type >>{self.reset_all}")
+        b_str = input(f"{self.bright}{self.red}# Input Characters to generate word combinations >>{self.reset_all}")
+        b_min = int(input(f"{self.bright}{self.red}# Input Min Length Password >>{self.reset_all}"))
+        b_max = int(input(f"{self.bright}{self.red}# Input Max Length Password >>{self.reset_all}"))
         start_time = time.time()
         for i in self.gen.BrutForce(b_str, b_min, b_max):
             main.trying(i, start_time)
@@ -527,13 +547,13 @@ class HashCrack_Gen:
                 break
             else:
                 pass
-        input(f"{self.bright}{self.green}Press Enter to main #{self.reset_all}")
+        input(f"{self.bright}{self.green}Press Enter to Main Menu #{self.reset_all}")
         main.my_start()
         
     def _dictionary_crack(self):
-        b_hash = input(f"{self.bright}{self.red}Input Encrypted Hash String >>{self.reset_all}").replace("'", "").replace('"',"").lstrip().rstrip()
-        hash_type = input(f"{self.bright}{self.red}Select {self.blue}[1]MD5 [2]SHA1 [3]SHA224 [4]SHA256 [5]SHA384 [6]SHA512 [7]BLAKE2B [8]BLAKE2S \n{self.red}Type >>{self.reset_all}")
-        b_dic = input(f"{self.bright}{self.red}Input Dictionary File Path or Name >>{self.reset_all}")
+        b_hash = input(f"{self.bright}{self.red}# Input Encrypted Hash String >>{self.reset_all}").replace("'", "").replace('"',"").lstrip().rstrip()
+        hash_type = input(f"{self.bright}{self.red}# Select {self.blue}[1]MD5 [2]SHA1 [3]SHA224 [4]SHA256 [5]SHA384 [6]SHA512 [7]BLAKE2B [8]BLAKE2S \n{self.red}Type >>{self.reset_all}")
+        b_dic = input(f"{self.bright}{self.red}# Input Dictionary File Path or Name >>{self.reset_all}")
         start_time = time.time()
         for i in self.gen.Dictionary(b_dic):
             main.trying(i, start_time)
@@ -542,70 +562,99 @@ class HashCrack_Gen:
                 break
             else:
                 pass
-        input(f"{self.bright}{self.green}Press Enter to main #{self.reset_all}")
+        input(f"{self.bright}{self.green}Press Enter to Main Menu #{self.reset_all}")
         main.my_start()
 
     def _generate_wildcard(self):
-        words = input(f"{self.bright}{self.red}Enter words (separated by spaces): >>{self.reset_all}").split()
-        numbers = input(f"{self.bright}{self.red}Enter special symbols & numbers together to append at ending word (separated by spaces): >>{self.reset_all}").split()
-        def generate_and_print_wordlist():
-            wordlist = self.gen.generate_wordlist_wildcard(words, numbers)
-            print(f"{self.bright}{self.blue}Generated Wordlist: {self.reset_all}")
-            for word in wordlist:
-                print(word)    
-        thread = threading.Thread(target=generate_and_print_wordlist)
-        thread.start()
-        thread.join()
+        user_input = input(f"{self.bright}{self.red}# Enter a string with '?' symbol for replacements:  >>{self.reset_all}")
+        include_letters_input = input(f"{self.bright}{self.red}# Do you want to include letters (a-z, A-Z)? (y/n):  >>{self.reset_all}").lower()
+        include_numbers_input = input(f"{self.bright}{self.red}# Do you want to include numbers (0-9)? (y/n):  >>{self.reset_all}").lower()
+        include_special_symbols_input = input(f"{self.bright}{self.red}# Do you want to include special symbols? (y/n):  >>{self.reset_all}").lower()
         
+        include_letters = include_letters_input == 'y'
+        include_numbers = include_numbers_input == 'y'
+        include_special_symbols = include_special_symbols_input == 'y'
+        
+        wordlist = self.gen.Generate_Wordlist_Wildcard(user_input, include_letters, include_numbers, include_special_symbols)       
+        # Ask user for filename and whether to display
+        filename = input(f"{self.bright}{self.red}# Enter a filename to save the wordlist (leave blank to skip saving):  >>{self.reset_all}").strip()
+        display_wordlist = input(f"{self.bright}{self.red}# Do you want to display the wordlist? (y/n):  >>{self.reset_all}").lower() == 'y'
+        
+        if filename:
+            with open(filename, 'w') as file:
+                for word in wordlist:
+                    file.write(word + '\n')
+            print(f"{self.bright}{self.yellow}Wordlist saved to {self.green}[ {filename} ]{self.reset_all}\n")
+        
+        if display_wordlist:
+            print(f"\n{self.bright}{self.yellow}Generated wordlist:{self.reset_all}")
+            for word in wordlist:
+                print(word)
+
     def _generate_custom_wordlist(self):
-        base_words = input(f"{self.bright}{self.red}Enter multiple base words separated by commas (e.g., hello,world): >>{self.reset_all}").split(",")
-        numbers = input(f"{self.bright}{self.red}Enter multiple numbers separated by commas (e.g., 123,456,789): >>{self.reset_all}").split(",")
-        numbers = [int(number) for number in numbers] if numbers else None
+        base_words = input(f"{self.bright}{self.red}# Enter multiple base words separated by commas (e.g., hello,world): >>{self.reset_all}").split(",")
+        numbers_input = input(f"{self.bright}{self.red}# Enter multiple numbers separated by commas (e.g., 123,456,789), or leave blank: >>{self.reset_all}").strip()
+        filename = input(f"{self.bright}{self.red}# Enter filename to save wordlists (e.g., wordlist.txt), or leave blank: >>{self.reset_all}")
+        display_option = input(f"{self.bright}{self.red}# Display Wordlists? (y/n): >>{self.reset_all}").lower()
+
+        if numbers_input:
+            numbers = [int(number) for number in numbers_input.split(",")]
+        else:
+            numbers = None
+
         wordlists = self.gen.Custom_Wordlists_Replace(base_words, numbers)
-        with open("wordlist.txt", "w") as file:
+
+        if filename:
+            with open(filename, "w") as file:
+                for wordlist in wordlists:
+                    for word in wordlist:
+                        file.write(word + "\n")
+                    file.write("\n")  # Add a blank line between wordlists
+            print(f"{self.bright}{self.yellow}Wordlists saved successfully to {filename}.\n{self.reset_all}")
+
+        if display_option == 'y':
+            print("Wordlists:")
             for wordlist in wordlists:
                 for word in wordlist:
-                    file.write(word + "\n")
-                file.write("\n")  # Add a blank line between wordlists
-        print(f"{self.bright}{self.red}Wordlists generated successfully in file -> wordlist.txt{self.reset_all}")   
+                    print(word)
+                print("") 
         
-    
+        
     def _identify_hash(self):
         # Take user input
-        input_hash = input(f"{self.bright}{self.red}Enter the hash value: >>{self.reset_all}")
+        input_hash = input(f"{self.bright}{self.red}## Enter the hash value: >>{self.reset_all}")
         algorithm = self.gen.Identify_Hash_Algorithm(input_hash)
-        print(f"{self.bright}{self.blue}The hash is likely generated using {self.red}[{algorithm}]{self.green} algorithm.{self.reset_all}")
+        print(f"{self.bright}{self.yellow}The hash is likely generated using {self.red}[{algorithm}]{self.yellow} algorithm.{self.reset_all}\n")
         
     def _hash_generator(self):
-        words = input(f"{self.bright}{self.red}Enter the words (separated by commas): >>{self.reset_all}").split(',')
-        algorithms = input(f"{self.bright}{self.red}Enter the hash algorithms (separated by commas): >>{self.reset_all}").split(',')
+        words = input(f"{self.bright}{self.red}# Enter the words (separated by commas): >>{self.reset_all}").split(',')
+        algorithms = input(f"{self.bright}{self.red}# Enter the hash algorithms (separated by commas): >>{self.reset_all}").split(',')
         algorithms = [algo.strip().lower() for algo in algorithms]  # Ensure lowercase
-        print(f"{self.bright}{self.blue}Analyzing hashes...{self.reset_all}")
-        hash_results = self.gen.Analyze_Hashes([word.strip() for word in words], algorithms)
+        print(f"{self.bright}{self.yellow}Analyzing hashes...{self.reset_all}")
+        hash_results = self.gen.Analyze_Hashes(self,[word.strip() for word in words], algorithms)
         if hash_results:
-            print(f"{self.bright}{self.blue}Hash analysis complete:{self.reset_all}")
+            print(f"{self.bright}{self.yellow}Hash analysis complete:{self.reset_all}")
             for word, word_results in hash_results.items():
-                print(f"{self.bright}{self.blue}Word: {self.green}{word}")
+                print(f"{self.bright}{self.red}Word: {self.blue}{word}")
                 for algo, value in word_results.items():
-                    print(f"{self.bright}{self.red}{algo}: {self.yellow}{value}")
+                    print(f"{self.bright}{self.red}{algo}: {self.green}{value}")
                 print()
-
-    
+   
     def _generate_rainbow_table(self):
-        wordlist_file = input(f"{self.bright}{self.red}Enter the path of the wordlist file: >>{self.reset_all}").strip()
-        algorithm = input(f"{self.bright}{self.red}Enter the hash algorithm (md5, sha1, sha256, etc.): >>{self.reset_all}").strip().lower()
-        output_file = input(f"{self.bright}{self.red}Enter the output file name: >>{self.reset_all}").strip()
+        wordlist_file = input(f"{self.bright}{self.red}# Enter the path of the wordlist file: >>{self.reset_all}").strip()
+        algorithm = input(f"{self.bright}{self.red}# Enter the hash algorithm (md5, sha1, sha256, etc.): >>{self.reset_all}").strip().lower()
+        output_file = input(f"{self.bright}{self.red}# Enter the output file name: >>{self.reset_all}").strip()
         self.gen.Generate_RainbowTable(wordlist_file, algorithm, output_file)
-        print(f"{self.bright}{self.blue}Rainbow table generated successfully!{self.reset_all}\n")
+        print(f"{self.bright}{self.yellow}Rainbow table generated successfully!{self.reset_all}\n")
 
     
     def _generate_rainbow_numbers(self):
-        algorithm = input(f"{self.bright}{self.red}Enter the hash algorithm (md5, sha1, sha256): >>{self.reset_all}").lower()
-        start = int(input(f"{self.bright}{self.red}Enter the starting number of the range: >>{self.reset_all}"))
-        end = int(input(f"{self.bright}{self.red}Enter the ending number of the range: >>{self.reset_all}"))
-        filename = input(f"{self.bright}{self.red}Enter the file name to save the rainbow table: >>{self.reset_all}")       
+        algorithm = input(f"{self.bright}{self.red}# Enter the hash algorithm (md5, sha1, sha256): >>{self.reset_all}").lower()
+        start = int(input(f"{self.bright}{self.red}# Enter the starting number of the range: >>{self.reset_all}"))
+        end = int(input(f"{self.bright}{self.red}# Enter the ending number of the range: >>{self.reset_all}"))
+        filename = input(f"{self.bright}{self.red}# Enter the file name to save the rainbow table: >>{self.reset_all}")       
         self.gen.Generate_RainbowTable_Numbers(algorithm, filename, start, end)
-        print(f"{self.bright}{self.blue}Rainbow table generated successfully!{self.reset_all}\n")
+        print(f"{self.bright}{self.yellow}Rainbow table generated successfully!{self.reset_all}\n")
         
 if __name__ == "__main__":
     while True:
