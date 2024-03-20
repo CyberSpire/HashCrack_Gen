@@ -238,24 +238,29 @@ class Generator:
             if word_results:  # Only add results if there are valid hash values
                 results[word] = word_results
         return results
-    
+
+
     @staticmethod
     def Generate_RainbowTable(wordlist_file, algorithm, output_file):
         """Generate a rainbow table for the specified algorithm using a wordlist file."""
         table = {}
-        with open(wordlist_file, 'r') as f:
-            words = f.readlines()
-            for word in words:
-                word = word.strip()
-                hasher = hashlib.new(algorithm)
-                hasher.update(word.encode())
-                hash_value = hasher.hexdigest()
-                table[word] = hash_value
+        try:
+            with open(wordlist_file, 'r') as f:
+                words = f.readlines()
+                for word in words:
+                    word = word.strip()
+                    hasher = hashlib.new(algorithm)
+                    hasher.update(word.encode())
+                    hash_value = hasher.hexdigest()
+                    table[word] = hash_value
 
-        with open(output_file, 'w') as f:
-            for word, hash_value in table.items():
-                f.write(f"{word}:{hash_value}\n")
-    
+            with open(output_file, 'w') as f:
+                for word, hash_value in table.items():
+                    f.write(f"{word}:{hash_value}\n")
+        except Exception as e:
+            print(f"Error occurred while generating the rainbow table: {e}\n") 
+          
+               
     @staticmethod           
     def Generate_RainbowTable_Numbers(algorithm, filename, start, end):
         """Generate a simplified rainbow table for the specified algorithm."""
@@ -535,7 +540,33 @@ class HashCrack_Gen:
                 
     def _brute_force_crack(self):
         b_hash = input(f"{self.bright}{self.red}# Input Encrypted Hash String >>{self.reset_all}").replace("'", "").replace('"',"").lstrip().rstrip()
-        hash_type = input(f"{self.bright}{self.red}# Select {self.blue}[1]MD5 [2]SHA1 [3]SHA224 [4]SHA256 [5]SHA384 [6]SHA512 [7]BLAKE2B [8]BLAKE2S \n{self.red}Type >>{self.reset_all}")
+        hash_types = {
+            '1': 'md5',
+            '2': 'sha1',
+            '3': 'sha224',
+            '4': 'sha256',
+            '5': 'sha384',
+            '6': 'sha512',
+            '7': 'blake2b',
+            '8': 'blake2s'
+        }
+        while True:
+            hash_type = input(f"{self.bright}{self.red}# Select {self.blue}[1]MD5 [2]SHA1 [3]SHA224 [4]SHA256 [5]SHA384 [6]SHA512 [7]BLAKE2B [8]BLAKE2S \n{self.red}Type >>{self.reset_all}")
+            if hash_type in hash_types:
+                selected_hash = hash_types[hash_type]
+                break
+            else:
+                print(f"{self.bright}{self.red}Invalid hash algorithm selected. Please choose a valid option.{self.reset_all}") 
+        # Check if provided hash corresponds to the selected hash algorithm
+        try:
+            if hashlib.new(selected_hash).digest_size * 2 == len(b_hash):
+                print(f"{self.bright}{self.yellow}[ The provided hash is of type {selected_hash.upper()}.]{self.reset_all}")
+            else:
+                print(f"{self.bright}{self.red}Error: {self.reset_all}The provided hash does not match the selected hash algorithm {selected_hash.upper()}.\n")
+                return
+        except ValueError:
+            print(f"{self.bright}{self.red}Error: {self.reset_all}Invalid hash algorithm selected: {selected_hash.upper()}\n")
+            return
         b_str = input(f"{self.bright}{self.red}# Input Characters to generate word combinations >>{self.reset_all}")
         b_min = int(input(f"{self.bright}{self.red}# Input Min Length Password >>{self.reset_all}"))
         b_max = int(input(f"{self.bright}{self.red}# Input Max Length Password >>{self.reset_all}"))
@@ -552,16 +583,49 @@ class HashCrack_Gen:
         
     def _dictionary_crack(self):
         b_hash = input(f"{self.bright}{self.red}# Input Encrypted Hash String >>{self.reset_all}").replace("'", "").replace('"',"").lstrip().rstrip()
-        hash_type = input(f"{self.bright}{self.red}# Select {self.blue}[1]MD5 [2]SHA1 [3]SHA224 [4]SHA256 [5]SHA384 [6]SHA512 [7]BLAKE2B [8]BLAKE2S \n{self.red}Type >>{self.reset_all}")
+        hash_types = {
+            '1': 'md5',
+            '2': 'sha1',
+            '3': 'sha224',
+            '4': 'sha256',
+            '5': 'sha384',
+            '6': 'sha512',
+            '7': 'blake2b',
+            '8': 'blake2s'
+        }
+        while True:
+            hash_type = input(f"{self.bright}{self.red}# Select {self.blue}[1]MD5 [2]SHA1 [3]SHA224 [4]SHA256 [5]SHA384 [6]SHA512 [7]BLAKE2B [8]BLAKE2S \n{self.red}Type >>{self.reset_all}")
+            if hash_type in hash_types:
+                selected_hash = hash_types[hash_type]
+                break
+            else:
+                print(f"{self.bright}{self.red}Invalid hash algorithm selected. Please choose a valid option.{self.reset_all}") 
+        # Check if provided hash corresponds to the selected hash algorithm
+        try:
+            if hashlib.new(selected_hash).digest_size * 2 == len(b_hash):
+                print(f"{self.bright}{self.yellow}[ The provided hash is of type {selected_hash.upper()}.]{self.reset_all}")
+            else:
+                print(f"{self.bright}{self.red}Error: {self.reset_all}The provided hash does not match the selected hash algorithm {selected_hash.upper()}.\n")
+                return
+        except ValueError:
+            print(f"{self.bright}{self.red}Error: {self.reset_all}Invalid hash algorithm selected: {selected_hash.upper()}\n")
+            return
         b_dic = input(f"{self.bright}{self.red}# Input Dictionary File Path or Name >>{self.reset_all}")
         start_time = time.time()
+        if not os.path.exists(b_dic):
+            print(f"{self.bright}{self.red}Error: {self.reset_all}Dictionary file not found.\n")
+            input(f"{self.bright}{self.green}Press Enter to Main Menu #{self.reset_all}")
+            main.my_start()
+            return
+        match_found = False
         for i in self.gen.Dictionary(b_dic):
             main.trying(i, start_time)
             if self.key.hash_key(b_hash, i, hash_type):
                 main.pass_found(b_hash, i, start_time)
+                match_found = True
                 break
-            else:
-                pass
+        if not match_found:
+            print(f"{self.bright}{self.yellow}\nNo matching hash found in the provided dictionary.\n")
         input(f"{self.bright}{self.green}Press Enter to Main Menu #{self.reset_all}")
         main.my_start()
 
@@ -644,15 +708,18 @@ class HashCrack_Gen:
         wordlist_file = input(f"{self.bright}{self.red}# Enter the path of the wordlist file: >>{self.reset_all}").strip()
         algorithm = input(f"{self.bright}{self.red}# Enter the hash algorithm (md5, sha1, sha256, etc.): >>{self.reset_all}").strip().lower()
         output_file = input(f"{self.bright}{self.red}# Enter the output file name: >>{self.reset_all}").strip()
-        self.gen.Generate_RainbowTable(wordlist_file, algorithm, output_file)
-        print(f"{self.bright}{self.yellow}Rainbow table generated successfully!{self.reset_all}\n")
+        if not os.path.exists(wordlist_file):
+            print(f"{self.bright}{self.red}Error: {self.reset_all}Wordlist file path does not exist.\n")
+        else:
+            if self.gen.Generate_RainbowTable(wordlist_file, algorithm, output_file):
+                print(f"{self.bright}{self.yellow}Rainbow table generated successfully!{self.reset_all}\n")               
 
     
     def _generate_rainbow_numbers(self):
         algorithm = input(f"{self.bright}{self.red}# Enter the hash algorithm (md5, sha1, sha256): >>{self.reset_all}").lower()
         start = int(input(f"{self.bright}{self.red}# Enter the starting number of the range: >>{self.reset_all}"))
         end = int(input(f"{self.bright}{self.red}# Enter the ending number of the range: >>{self.reset_all}"))
-        filename = input(f"{self.bright}{self.red}# Enter the file name to save the rainbow table: >>{self.reset_all}")       
+        filename = input(f"{self.bright}{self.red}# Enter the file name to save the rainbow table: >>{self.reset_all}")
         self.gen.Generate_RainbowTable_Numbers(algorithm, filename, start, end)
         print(f"{self.bright}{self.yellow}Rainbow table generated successfully!{self.reset_all}\n")
         
